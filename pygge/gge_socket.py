@@ -11,6 +11,7 @@ from .account.friends import Friends
 from .account.settings import Settings
 
 from .alliance.help import Help
+from .alliance.chat import Chat
 
 from .army.hospital import Hospital
 from .army.soldiers import Soldiers
@@ -75,6 +76,7 @@ class GgeSocket(
     Friends,
     Settings,
     Help,
+    Chat,
     Hospital,
     Soldiers,
     Tools,
