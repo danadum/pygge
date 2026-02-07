@@ -4,6 +4,9 @@ This module contains the main class for interacting with the Goodgame Empire API
 The`GgeSocket` class is a subclass of all the other classes in the `pygge` package. It is a convenience class that allows you to interact with the Goodgame Empire API using a single object.
 """
 
+from .base_ws_socket import BaseWsSocket
+from .base_tcp_socket import BaseTcpSocket
+
 from .account.account import Account
 from .account.auth import Auth
 from .account.emblem import Emblem
@@ -129,7 +132,79 @@ class GgeSocket(
     The main class for interacting with the Goodgame Empire API.
 
     This class is a subclass of all the other classes in the `pygge` package. It is a convenience class that allows you to interact with the Goodgame Empire API using a single object.
+    
+    Automatically selects TCP or WebSocket protocol based on URL.
     """
+
+    def __new__(
+        cls,
+        url: str,
+        server_header: str,
+        on_send=None,
+        on_open=None,
+        on_message=None,
+        on_error=None,
+        on_close=None,
+        force_ws=False,
+        *args,
+        **kwargs,
+    ):
+        """
+        Create a new GgeSocket instance with the appropriate protocol.
+        
+        Args:
+            url (str): The URL of the server to connect to.
+            server_header (str): The server header to use.
+            on_send (function, optional): A function to call when sending a message. Defaults to None.
+            on_open (function, optional): A function to call when the connection is opened. Defaults to None.
+            on_message (function, optional): A function to call when a message is received. Defaults to None.
+            on_error (function, optional): A function to call when an error occurs. Defaults to None.
+            on_close (function, optional): A function to call when the connection is closed. Defaults to None.
+            force_ws (bool, optional): If True, force the use of WebSocket protocol. Defaults to False.
+            *args: Additional arguments to pass to the WebSocket constructor.
+            **kwargs: Additional keyword arguments to pass to the WebSocket constructor.
+
+        Returns:
+            GgeSocket: The GgeSocket object with appropriate protocol.
+        """
+        base_class = BaseTcpSocket if "e4k-" in url and not force_ws else BaseWsSocket
+        base_class = type(f"{cls.__name__}_{base_class.__name__}", (cls, base_class), {})
+        instance = object.__new__(base_class)
+        
+        return instance
+
+    def __init__(
+        self,
+        url: str,
+        server_header: str,
+        on_send=None,
+        on_open=None,
+        on_message=None,
+        on_error=None,
+        on_close=None,
+        force_ws=False,
+        *args,
+        **kwargs,
+    ):
+        """
+        Initialize the GgeSocket instance.
+
+        Args:
+            url (str): The URL of the server to connect to.
+            server_header (str): The server header to use.
+            on_send (function, optional): A function to call when sending a message. Defaults to None.
+            on_open (function, optional): A function to call when the connection is opened. Defaults to None.
+            on_message (function, optional): A function to call when a message is received. Defaults to None.
+            on_error (function, optional): A function to call when an error occurs. Defaults to None.
+            on_close (function, optional): A function to call when the connection is closed. Defaults to None.
+            force_ws (bool, optional): If True, force the use of WebSocket protocol. Defaults to False.
+            *args: Additional arguments to pass to the WebSocket constructor.
+            **kwargs: Additional keyword arguments to pass to the WebSocket constructor.
+
+        Returns:
+            None
+        """
+        super().__init__(url, server_header, on_send, on_open, on_message, on_error, on_close, *args, **kwargs)
 
     def open_quest_book(self, sync: bool = True, quiet: bool = False) -> None:
         """

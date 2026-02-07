@@ -1,18 +1,18 @@
 """
-This module contains the base class for Goodgame Empire websocket connections.
+This module contains the base class for Goodgame Empire socket connections.
 
-The `BaseGgeSocket` class is a subclass of `websocket.WebSocketApp` and provides additional functionality for sending and receiving messages.
+The `BaseGgeSocket` class provides common functionality for sending and receiving messages.
 """
+
+from __future__ import annotations
 
 import json
 import re
 import threading
 from typing import Callable
 
-import websocket
 
-
-class BaseGgeSocket(websocket.WebSocketApp):
+class BaseGgeSocket:
     """
     Base class for Goodgame Empire websocket connections.
 
@@ -26,42 +26,27 @@ class BaseGgeSocket(websocket.WebSocketApp):
 
     def __init__(
         self,
-        url: str,
         server_header: str,
-        on_send: Callable[[websocket.WebSocketApp, str], None] | None = None,
-        on_open: Callable[[websocket.WebSocketApp], None] | None = None,
-        on_message: Callable[[websocket.WebSocketApp, str], None] | None = None,
-        on_error: Callable[[websocket.WebSocketApp, Exception], None] | None = None,
-        on_close: Callable[[websocket.WebSocketApp, int, str], None] | None = None,
-        *args,
-        **kwargs,
+        on_send: Callable[[BaseGgeSocket, str], None] = None,
+        on_open: Callable[[BaseGgeSocket], None] = None,
+        on_message: Callable[[BaseGgeSocket, str], None] = None,
+        on_error: Callable[[BaseGgeSocket, Exception], None] = None,
+        on_close: Callable[[BaseGgeSocket, int, str], None] = None,
     ) -> None:
         """
-        Initializes the websocket connection.
+        Initializes the socket connection.
 
         Args:
-            url (str): The URL of the websocket server.
             server_header (str): The server header to use.
             on_send (function, optional): A function to call when sending a message. Defaults to None.
             on_open (function, optional): A function to call when the connection is opened. Defaults to None.
             on_message (function, optional): A function to call when a message is received. Defaults to None.
             on_error (function, optional): A function to call when an error occurs. Defaults to None.
             on_close (function, optional): A function to call when the connection is closed. Defaults to None.
-            *args: Additional arguments to pass to the websocket.WebSocketApp constructor.
-            **kwargs: Additional keyword arguments to pass to the websocket.WebSocketApp constructor.
 
         Returns:
             None
         """
-        super().__init__(
-            url,
-            on_open=self.__onopen,
-            on_message=self.__onmessage,
-            on_error=self.__onerror,
-            on_close=self.__onclose,
-            *args,
-            **kwargs,
-        )
         self.server_header = server_header
         """ str: The server header to use. """
         self.__on_send = on_send
@@ -81,12 +66,12 @@ class BaseGgeSocket(websocket.WebSocketApp):
         self.__messages: list[dict] = []
         """ list[dict]: Internal list of messages waiting for a response. """
 
-    def __onopen(self, ws: websocket.WebSocketApp) -> None:
+    def _onopen(self, ws: BaseGgeSocket) -> None:
         """
         Internal function which is called when the connection is opened.
 
         Args:
-            ws (websocket.WebSocketApp): The websocket connection.
+            ws (BaseGgeSocket): The socket connection object.
 
         Returns:
             None
@@ -94,28 +79,27 @@ class BaseGgeSocket(websocket.WebSocketApp):
         self.opened.set()
         self.__on_open and self.__on_open(ws)
 
-    def __onmessage(self, ws: websocket.WebSocketApp, message: bytes) -> None:
+    def _onmessage(self, ws: BaseGgeSocket, message: str) -> None:
         """
         Internal function which is called when a message is received.
 
         Args:
-            ws (websocket.WebSocketApp): The websocket connection.
+            ws (BaseGgeSocket): The socket connection object.
             message (str): The message received.
 
         Returns:
             None
         """
-        message = message.decode("UTF-8")
         response = self.parse_response(message)
         self.__process_response(response)
         self.__on_message and self.__on_message(ws, message)
 
-    def __onerror(self, ws: websocket.WebSocketApp, error: Exception) -> None:
+    def _onerror(self, ws: BaseGgeSocket, error: Exception) -> None:
         """
         Internal function which is called when an error occurs.
 
         Args:
-            ws (websocket.WebSocketApp): The websocket connection.
+            ws (BaseGgeSocket): The socket connection object.
             error (Exception): The error that occurred.
 
         Returns:
@@ -123,14 +107,14 @@ class BaseGgeSocket(websocket.WebSocketApp):
         """
         self.__on_error and self.__on_error(ws, error)
 
-    def __onclose(
-        self, ws: websocket.WebSocketApp, close_status_code: int, close_msg: str
+    def _onclose(
+        self, ws: BaseGgeSocket, close_status_code: int, close_msg: str
     ) -> None:
         """
         Internal function which is called when the connection is closed.
 
         Args:
-            ws (websocket.WebSocketApp): The websocket connection.
+            ws (BaseGgeSocket): The socket connection object.
             close_status_code (int): The status code of the close.
             close_msg (str): The message of the close.
 
@@ -141,20 +125,45 @@ class BaseGgeSocket(websocket.WebSocketApp):
         self.closed.set()
         self.__on_close and self.__on_close(ws, close_status_code, close_msg)
 
-    def send(self, data: str, *args, **kwargs) -> None:
+    def _send(self, data: str) -> None:
         """
-        Sends a message over the websocket connection.
+        Internal method to send data. Must be implemented by subclass.
+
+        Args:
+            data (str): The data to send.
+
+        Returns:
+            None
+
+        Raises:
+            NotImplementedError: This method must be implemented by subclass.
+        """
+        raise NotImplementedError("_send() must be implemented by subclass")
+
+    def close(self) -> None:
+        """
+        Closes the connection. Must be implemented by subclass.
+
+        Returns:
+            None
+
+        Raises:
+            NotImplementedError: This method must be implemented by subclass.
+        """
+        raise NotImplementedError("close() must be implemented by subclass")
+
+    def send(self, data: str) -> None:
+        """
+        Sends a message over the socket connection.
 
         Args:
             data (str): The message to send.
-            *args: Additional arguments to pass to the websocket.WebSocketApp.send method.
-            **kwargs: Additional keyword arguments to pass to the websocket.WebSocketApp.send method.
 
         Returns:
             None
         """
         self.__on_send and self.__on_send(self, data)
-        super().send(data, *args, **kwargs)
+        self._send(data)
 
     def __send_command_message(self, data: list[str]) -> None:
         """
@@ -298,7 +307,7 @@ class BaseGgeSocket(websocket.WebSocketApp):
         Raises:
             TimeoutError: If the response is not received within the timeout.
         """
-        self.__wait_for_response(
+        return self.__wait_for_response(
             "xml",
             {
                 "t": t,
